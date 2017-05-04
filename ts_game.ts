@@ -1,11 +1,12 @@
 /**
  * @author Luis Pablo
  * @copyright 2017
- * @version 2.0
+ * @version 2.1.0
  */
 namespace Tetris {
     let GAME_LOOP = null;
     let BLOCK_SIZE = 0;
+    let DEBUG = false;
 
     enum GameStatus {stopped, started}
     enum GridCell {empty, filled}
@@ -22,6 +23,11 @@ namespace Tetris {
     let availability = document.getElementById("availability");
     let piecemap = document.getElementById("piece");
 
+    if (!DEBUG) {
+        availability.setAttribute("class", "hidden");
+        piecemap.setAttribute("class", "hidden")
+    }
+
     const Colors = {
         red: "#BE2727",
         blue: "#3163A3",
@@ -33,7 +39,8 @@ namespace Tetris {
         magenta: "#AF3AAA",
         black: "#000000",
         white: "#FFFFFF",
-        smoke: "#EDEDED"
+        smoke: "#EDEDED",
+        grey: "#999999"
     };
 
     const ColorMap = {
@@ -99,7 +106,10 @@ namespace Tetris {
         private _type: TetrominoType;
         private position: Position;
         private blockLayout;
-        constructor(_type: TetrominoType, posX: number = 0, posY: number = 0, layout: any[] = []) {
+        private isGhost: boolean;
+        private isSplit: boolean;
+
+        constructor(_type: TetrominoType, posX: number = 0, posY: number = 0, layout: any[] = [], isSplit = false, isGhost = false) {
             this._type = _type;
             this.color = ColorMap[_type];
             this.orientation = 0;
@@ -108,6 +118,8 @@ namespace Tetris {
                 y: posY
             };
             this.blockLayout = layout;
+            this.isSplit = isSplit;
+            this.isGhost = isGhost;
         }
         draw(ctx) {
             let layout, shadowWidth, LINE_WIDTH = 4;
@@ -123,63 +135,71 @@ namespace Tetris {
                         // draw the box background
                         ctx.globalAlpha = 1;
                         ctx.beginPath();
-                        ctx.fillStyle = this.color;
+                        ctx.fillStyle = this.isGhost ? Colors.grey : this.color;
                         ctx.fillRect(
                             ( j * BLOCK_SIZE ) + this.position.x,
                             ( i * BLOCK_SIZE ) + this.position.y, BLOCK_SIZE, BLOCK_SIZE );
 
                         ctx.globalAlpha = 0.4;
-                        ctx.strokeStyle = Colors.black;
-                        ctx.lineWidth = shadowWidth = LINE_WIDTH - 1;
-                        ctx.lineJoin = "miter";
-                        ctx.beginPath();
-                        ctx.moveTo(
-                            this.position.x + ( j * BLOCK_SIZE ) + shadowWidth,
-                            this.position.y + ( i * BLOCK_SIZE ));
-                        ctx.lineTo(
-                            this.position.x + ( j * BLOCK_SIZE ) + shadowWidth,
-                            this.position.y + ( i * BLOCK_SIZE ) + ( BLOCK_SIZE - shadowWidth ));
-                        ctx.lineTo(
-                            this.position.x + ( j * BLOCK_SIZE ) + BLOCK_SIZE,
-                            this.position.y + ( i * BLOCK_SIZE ) + ( BLOCK_SIZE - shadowWidth ));
-                        ctx.lineTo(
-                            this.position.x + ( j * BLOCK_SIZE  ) + shadowWidth,
-                            this.position.y + ( i * BLOCK_SIZE ) + ( BLOCK_SIZE - shadowWidth ));
-                        ctx.stroke();
-                        ctx.closePath();
 
-                        // draw highlights
-                        ctx.strokeStyle = Colors.white;
-                        ctx.beginPath();
-                        ctx.moveTo(
-                            this.position.x + ( j * BLOCK_SIZE ),
-                            this.position.y + ( i * BLOCK_SIZE ) + shadowWidth );
-                        ctx.lineTo(
-                            this.position.x + ( j * BLOCK_SIZE ) + ( BLOCK_SIZE - shadowWidth ),
-                            this.position.y + ( i * BLOCK_SIZE ) + shadowWidth);
-                        ctx.lineTo(
-                            this.position.x + ( j * BLOCK_SIZE ) + ( BLOCK_SIZE - shadowWidth ),
-                            this.position.y + ( i * BLOCK_SIZE ) + BLOCK_SIZE );
-                        ctx.lineTo(
-                            this.position.x + ( j * BLOCK_SIZE ) + ( BLOCK_SIZE - shadowWidth ),
-                            this.position.y + ( i * BLOCK_SIZE ) + shadowWidth );
-                        ctx.stroke();
-                        ctx.closePath();
 
-                        // draw middle circle
-                        ctx.fillStyle = Colors.black;
-                        ctx.fillText(this.id,
-                            this.position.x + ( j * BLOCK_SIZE ) + ( BLOCK_SIZE / 2 ),
-                            this.position.y + ( i * BLOCK_SIZE ) + ( BLOCK_SIZE / 2 ));
-                        // ctx.fillStyle = Colors.black;
-                        // ctx.arc(
-                        //     this.position.x + ( j * BLOCK_SIZE ) + ( BLOCK_SIZE / 2 ),
-                        //     this.position.y + ( i * BLOCK_SIZE ) + ( BLOCK_SIZE / 2 ),
-                        //     shadowWidth, 0, 2 * Math.PI);
-                        // ctx.fill();
+                        if (!this.isGhost) {
+                            // draw shadows
+                            ctx.strokeStyle = Colors.black;
+                            ctx.lineWidth = shadowWidth = LINE_WIDTH - 1;
+                            ctx.lineJoin = "miter";
+                            ctx.beginPath();
+                            ctx.moveTo(
+                                this.position.x + ( j * BLOCK_SIZE ) + shadowWidth,
+                                this.position.y + ( i * BLOCK_SIZE ));
+                            ctx.lineTo(
+                                this.position.x + ( j * BLOCK_SIZE ) + shadowWidth,
+                                this.position.y + ( i * BLOCK_SIZE ) + ( BLOCK_SIZE - shadowWidth ));
+                            ctx.lineTo(
+                                this.position.x + ( j * BLOCK_SIZE ) + BLOCK_SIZE,
+                                this.position.y + ( i * BLOCK_SIZE ) + ( BLOCK_SIZE - shadowWidth ));
+                            ctx.lineTo(
+                                this.position.x + ( j * BLOCK_SIZE  ) + shadowWidth,
+                                this.position.y + ( i * BLOCK_SIZE ) + ( BLOCK_SIZE - shadowWidth ));
+                            ctx.stroke();
+                            ctx.closePath();
+
+                            // draw highlights
+                            ctx.strokeStyle = Colors.white;
+                            ctx.beginPath();
+                            ctx.moveTo(
+                                this.position.x + ( j * BLOCK_SIZE ),
+                                this.position.y + ( i * BLOCK_SIZE ) + shadowWidth);
+                            ctx.lineTo(
+                                this.position.x + ( j * BLOCK_SIZE ) + ( BLOCK_SIZE - shadowWidth ),
+                                this.position.y + ( i * BLOCK_SIZE ) + shadowWidth);
+                            ctx.lineTo(
+                                this.position.x + ( j * BLOCK_SIZE ) + ( BLOCK_SIZE - shadowWidth ),
+                                this.position.y + ( i * BLOCK_SIZE ) + BLOCK_SIZE);
+                            ctx.lineTo(
+                                this.position.x + ( j * BLOCK_SIZE ) + ( BLOCK_SIZE - shadowWidth ),
+                                this.position.y + ( i * BLOCK_SIZE ) + shadowWidth);
+                            ctx.stroke();
+                            ctx.closePath();
+
+                            // draw middle circle
+                            ctx.fillStyle = Colors.black;
+                            if (DEBUG) {
+                                ctx.fillText(this.id,
+                                    this.position.x + ( j * BLOCK_SIZE ) + ( BLOCK_SIZE / 5 ),
+                                    this.position.y + ( i * BLOCK_SIZE ) + ( BLOCK_SIZE / 3 ));
+                            } else {
+                                ctx.fillStyle = Colors.black;
+                                ctx.arc(
+                                    this.position.x + ( j * BLOCK_SIZE ) + ( BLOCK_SIZE / 2 ),
+                                    this.position.y + ( i * BLOCK_SIZE ) + ( BLOCK_SIZE / 2 ),
+                                    shadowWidth, 0, 2 * Math.PI);
+                                ctx.fill();
+                            }
+                        }
 
                         // draw outline
-                        ctx.lineWidth = LINE_WIDTH;
+                        ctx.lineWidth = this.isGhost ? LINE_WIDTH - 2 : LINE_WIDTH;
                         ctx.strokeStyle = Colors.smoke;
                         ctx.lineJoin = "bevel";
                         ctx.globalAlpha = 1;
@@ -198,6 +218,10 @@ namespace Tetris {
         getOrientation() { return this.orientation; }
         setOrientation(o) { this.orientation = o % 4; }
         getPosition(): Position { return this.position; }
+
+        setPosition(p) {
+            this.position = p;
+        }
         getGridPosition(): Position { return {x: this.position.x / BLOCK_SIZE, y: this.position.y / BLOCK_SIZE }}
         getLayout() { return this.blockLayout; }
         setLayout(l) { this.blockLayout = l; }
@@ -238,10 +262,9 @@ namespace Tetris {
          * Checks if any rows of the tetromino block layout is separated by any empty row.
          * @returns {boolean}
          */
-        checkIsSeparable(): boolean {
-            console.debug("Checking if " + this.id + " is separable");
+        checkCanSplit(): boolean {
+            DEBUG && console.debug("Checking if " + this.id + " is separable");
             if (this.blockLayout.length === 0) {
-                console.log("Block is empty")
                 return false;
             } else {
                 let indices: number[] = [],
@@ -250,7 +273,6 @@ namespace Tetris {
 
                 // select all row indices that are non-empty
                 for (i = 0; i < len; i++) {
-                    console.log("Layout #" + i + " " + this.blockLayout[i]);
                     let sum: number = this.blockLayout[i].reduceRight(function(a, b){ return a + b; });
                     if (sum > 0) {
                         indices.push(i);
@@ -258,7 +280,6 @@ namespace Tetris {
                 }
 
                 // if there aren't 2 or more rows, no point splitting them
-                console.log("Indices:" + indices.join(""));
                 if (indices.length <= 1) {
                     return false;
                 } else {
@@ -288,11 +309,18 @@ namespace Tetris {
                 }
             }
 
-            let newTetromino = new Tetromino(this._type, this.position.x, this.position.y, newLayout);
+            let newTetromino = new Tetromino(this._type, this.position.x, this.position.y, newLayout, true);
             newTetromino.setId(this.id + 's' + 1);
 
-            console.debug("Splitting " + this.id + " into new piece " + newTetromino.getId());
+            DEBUG && console.debug("Splitting " + this.id + " into new piece " + newTetromino.getId());
             return newTetromino
+        }
+
+        clone() {
+            let newTetromino = new Tetromino(this._type, this.position.x, this.position.y, this.blockLayout, false, true);
+            newTetromino.setId(this.id + 'g' + 1);
+
+            return newTetromino;
         }
 
     }
@@ -311,7 +339,7 @@ namespace Tetris {
             return tetrominoType[0] + ++this.currId;
         }
         private fillTetrominoQueue() {
-            console.debug("Filling up tetromino queue");
+            DEBUG && console.debug("Filling up tetromino queue");
             let numList = [0, 1, 2, 3, 4, 5, 6],
                 generated = [],
                 newQueue: TetrominoType[] = [];
@@ -330,7 +358,7 @@ namespace Tetris {
             this.tetrominoQueue = newQueue;
         }
         next(): Tetromino {
-            console.debug("Popping out next tetromino");
+            DEBUG && console.debug("Popping out next tetromino");
             if (this.tetrominoQueue.length <= 1) {
                 // by only generating a new set of tetrominos when the queue is empty,
                 // we ensure that each tetromino exists in every permutation
@@ -356,12 +384,6 @@ namespace Tetris {
             // indicates which pieces occupy which cells
             this.pieceMap = GameGrid.generateGrid();
             this.lockedPieces = [];
-        }
-
-        printGrid(grid) {
-            for (let i = 0, len = grid.length; i < len; i++) {
-                console.log('[' + i + ']' + grid[i].join("").replace(/0/g, ' ').replace(/1/g, '*'));
-            }
         }
 
         htmlGrid() {
@@ -442,7 +464,7 @@ namespace Tetris {
          * @param tetrominoId
          */
         private hidePiece(tetrominoId: TetrominoID) {
-            console.debug("Hiding: " + tetrominoId);
+            DEBUG && console.debug("Hiding: " + tetrominoId);
             for (let i = 0, len = this.availabilityGrid.length; i < len; i++) {
                 for (let j = 0, len2 = this.availabilityGrid[i].length; j < len2; j++) {
                     if (this.pieceMap[i][j] === tetrominoId) {
@@ -458,7 +480,7 @@ namespace Tetris {
          * @param tetrominoId
          */
         private restorePiece(tetrominoId: TetrominoID) {
-            console.debug("Restoring: " + tetrominoId);
+            DEBUG && console.debug("Restoring: " + tetrominoId);
             for (let i = 0, len = this.availabilityGrid.length; i < len; i++) {
                 for (let j = 0, len2 = this.availabilityGrid[i].length; j < len2; j++) {
                     if (this.pieceMap[i][j] === tetrominoId) {
@@ -476,14 +498,12 @@ namespace Tetris {
          * @param tetrominoId
          */
         private shiftDownInGrid(tetrominoId: TetrominoID) {
-            console.debug("Shifting " + tetrominoId + " down in grid");
+            DEBUG && console.debug("Shifting " + tetrominoId + " down in grid");
             let freeGrid = GameGrid.generateGrid();
-            let locations = [];
 
             for (let row = 0, len = this.pieceMap.length; row < len; row++) {
                 for (let col = 0, len2 = this.pieceMap[row].length; col < len2; col++) {
                     if (this.pieceMap[row][col] === tetrominoId) {
-                        locations.push("" + (row + 1) + "," + col);
                         freeGrid[row + 1][col] = tetrominoId;
                         this.pieceMap[row][col] = GridCell.empty;
                         this.availabilityGrid[row][col] = GridCell.empty;
@@ -491,12 +511,9 @@ namespace Tetris {
                 }
             }
 
-            console.log(locations.join("|"));
-
             for (let row = 0, len = this.pieceMap.length; row < len; row++) {
                 for (let col = 0, len2 = this.pieceMap[row].length; col < len2; col++) {
                     if (freeGrid[row][col] === tetrominoId) {
-                        console.log("" + row + "," + col);
                         this.pieceMap[row][col] = tetrominoId;
                         this.availabilityGrid[row][col] = GridCell.filled;
                     }
@@ -517,7 +534,7 @@ namespace Tetris {
         }
 
         private clearTetrominoRow(tetrominoId: TetrominoID, rowIndex: number) {
-            console.debug("Clearing " + tetrominoId + " from row#" + rowIndex);
+            DEBUG && console.debug("Clearing " + tetrominoId + " from row#" + rowIndex);
             let tetromino = this.getTetrominoById(tetrominoId);
             let gridPosition = tetromino.getGridPosition();
             let tetrominoBlockRow = rowIndex - gridPosition.y;
@@ -527,11 +544,11 @@ namespace Tetris {
             tetromino.setLayout(currentLayout);
 
             if (!tetromino.checkIsIntact()) {
-                console.debug("Piece is not intact; delete from list");
+                DEBUG && console.debug("Piece is not intact; delete from list");
                 let pos = this.lockedPieces.indexOf(tetromino);
                 this.lockedPieces.splice(pos, 1);
-            } else if (tetromino.checkIsSeparable()) {
-                console.debug("Piece can be split");
+            } else if (tetromino.checkCanSplit()) {
+                DEBUG && console.debug("Piece can be split");
                 let other = tetromino.split(tetrominoBlockRow);
                 this.lockedPieces.push(other);
                 this.updatePieceMapIds(tetromino.getId(), other.getId(), rowIndex);
@@ -545,7 +562,7 @@ namespace Tetris {
          * @param cutoff
          */
         private updatePieceMapIds(oldId, newId, cutoff = this.pieceMap.length) {
-            console.debug("Replacing all instances of " + oldId + " with " + newId);
+            DEBUG && console.debug("Replacing all instances of " + oldId + " with " + newId);
             for (let i = 0, len = cutoff; i < len; i++) {
                 for (let j = 0, len2 = this.pieceMap[i].length; j < len2; j++) {
                     if (this.pieceMap[i][j] === oldId) {
@@ -567,7 +584,6 @@ namespace Tetris {
             }
 
             this.attemptShiftAllDown();
-            this.printGrid(this.availabilityGrid);
         }
 
         /**
@@ -608,7 +624,7 @@ namespace Tetris {
          * @returns {boolean}
          */
         registerTetromino(tetromino: Tetromino) {
-            console.debug("Attempt to register: " + tetromino.getId());
+            DEBUG && console.debug("Attempt to register: " + tetromino.getId());
             let layout = TetrominoLayout[tetromino.getType()][tetromino.getOrientation()];
             let position = tetromino.getGridPosition();
 
@@ -649,7 +665,7 @@ namespace Tetris {
          * @returns {number[]}
          */
         scanGrid() {
-            console.debug("Scanning game grid for clears");
+            DEBUG && console.debug("Scanning game grid for clears");
             let rowsToClear: number[] = [];
             for (let i = 0; i < ROWS; i++) {
                 let sum = 0;
@@ -685,7 +701,6 @@ namespace Tetris {
                         let gameGridCellFilled = gridCopy[yBlockPosition + i][xBlockPosition + j] >= GridCell.filled;
 
                         if (gameGridCellFilled) {
-                            console.error("Collision at " + i + ", " + j );
                             return true;
                         }
                     }
@@ -797,12 +812,9 @@ namespace Tetris {
                 let success = this.attemptShiftDown(tetromino);
 
                 if (success) {
-                    let newPos = tetromino.getGridPosition();
-                    console.debug("Shift down successful. New position: " + newPos.x + "," + newPos.y);
                     count++;
                     this.shiftDownInGrid(tetromino.getId());
                 } else {
-                    console.debug("Shift down failed");
                     this.restorePiece(tetromino.getId());
                 }
             }
@@ -817,6 +829,8 @@ namespace Tetris {
                 tetromino.draw(ctx);
             }
         }
+
+
     }
 
     class Game {
@@ -825,6 +839,8 @@ namespace Tetris {
         linesPerLevel;
         gameStatus = GameStatus.stopped;
         private currentTetromino: Tetromino = null;
+        private ghostPiece: Tetromino = null;
+
         private holdLock = false;
         private holdTetromino;
         private score = 0;
@@ -842,8 +858,6 @@ namespace Tetris {
         private uiCtx;
 
         private NUM_ROWS = ROWS + 1;
-
-        private availability;
 
         constructor(_gameCv: HTMLCanvasElement,
                     _bgCv: HTMLCanvasElement,
@@ -864,7 +878,8 @@ namespace Tetris {
             this.attachListeners();
 
             this.currentTetromino = this.tetrominoFactory.next();
-            this.run();
+            this.ghostPiece = this.currentTetromino.clone();
+            this.updateGhostPiece(this.currentTetromino);
         }
 
         attachListeners() {
@@ -941,21 +956,34 @@ namespace Tetris {
             ctx.fillText("Score", BLOCK_SIZE * 12, BLOCK_SIZE * 18);
         }
 
+        updateGhostPiece(parent: Tetromino) {
+            let newPos = parent.getPosition();
+            this.ghostPiece.setPosition({x: newPos.x, y: newPos.y});
+            this.ghostPiece.setOrientation(parent.getOrientation());
+            while (this.gameGrid.attemptShiftDown(this.ghostPiece)) {
+            }
+        }
 
 
         keyboardHandler(ev: KeyboardEvent) {
+            let success: boolean;
             switch(ev.keyCode) {
                 case KeyCodes.right:
                     this.gameGrid.attemptShiftRight(this.currentTetromino);
+                    this.updateGhostPiece(this.currentTetromino);
+
                     break;
                 case KeyCodes.left:
                     this.gameGrid.attemptShiftLeft(this.currentTetromino);
+                    this.updateGhostPiece(this.currentTetromino);
                     break;
                 case KeyCodes.down:
                     this.gameGrid.attemptShiftDown(this.currentTetromino);
                     break;
                 case KeyCodes.up:
-                    this.gameGrid.attemptRotation(this.currentTetromino);
+                    success = this.gameGrid.attemptRotation(this.currentTetromino);
+                    this.updateGhostPiece(this.currentTetromino);
+
                     break;
                 case KeyCodes.space:
                     // pause game, push piece down until it hits something, resume game
@@ -970,12 +998,12 @@ namespace Tetris {
                     break;
                 case KeyCodes.esc:
                     if (GAME_LOOP) {
-                        console.log("Paused.");
+                        DEBUG && console.log("Paused.");
                         this.gameStatus = GameStatus.stopped;
                         clearTimeout(GAME_LOOP);
                         GAME_LOOP = null;
                     } else {
-                        console.log("Resumed.");
+                        DEBUG && console.log("Resumed.");
                         this.gameStatus = GameStatus.started;
                         this.loop();
                     }
@@ -987,7 +1015,7 @@ namespace Tetris {
         }
 
         handlePieceHold() {
-            console.log("Holding piece");
+            DEBUG && console.debug("Holding piece");
             if (typeof this.holdTetromino === 'undefined') {
                 // reset position
                 this.holdTetromino = this.currentTetromino;
@@ -997,6 +1025,9 @@ namespace Tetris {
                 this.currentTetromino = this.holdTetromino;
                 this.holdTetromino = temp;
             }
+
+            this.ghostPiece = this.currentTetromino.clone();
+            this.updateGhostPiece(this.currentTetromino);
             this.holdLock = true;
         }
 
@@ -1021,19 +1052,19 @@ namespace Tetris {
             if (clearRows.length > 0) {
                 switch(clearRows.length) {
                     case 1:
-                        console.debug("Scoring single");
+                        DEBUG && console.debug("Scoring single");
                         this.score += (this.currentLevel * 100);
                         break;
                     case 2:
-                        console.debug("Scoring double");
+                        DEBUG && console.debug("Scoring double");
                         this.score += (this.currentLevel * 300);
                         break;
                     case 3:
-                        console.debug("Scoring triple");
+                        DEBUG && console.debug("Scoring triple");
                         this.score += (this.currentLevel * 500);
                         break;
                     case 4:
-                        console.debug("Scoring tetris");
+                        DEBUG && console.debug("Scoring tetris");
                         this.score += (this.currentLevel * 800);
                         break;
                     default:
@@ -1043,12 +1074,12 @@ namespace Tetris {
         }
 
         updateState() {
-            console.debug("Updating game state");
+            DEBUG && console.debug("Updating game state");
             let rowsToClear = this.gameGrid.scanGrid();
 
             this.updateScore(rowsToClear);
             if (rowsToClear.length > 0) {
-                console.debug("Found " + rowsToClear.length + " rows to clear");
+                DEBUG && console.debug("Found " + rowsToClear.length + " rows to clear");
                 this.gameGrid.clearRows(rowsToClear);
                 this.updateState();
             }
@@ -1058,7 +1089,6 @@ namespace Tetris {
             let _game = this;
 
             let attemptSuccessful = this.gameGrid.attemptShiftDown(this.currentTetromino);
-
 
             // if it stops moving, it must've hit something
             if (!attemptSuccessful) {
@@ -1072,6 +1102,8 @@ namespace Tetris {
 
                     this.holdLock = false;
                     this.currentTetromino = this.tetrominoFactory.next();
+                    this.ghostPiece = this.currentTetromino.clone();
+                    this.updateGhostPiece(this.currentTetromino);
 
                     this.linesPerLevel += 1;
                     if (this.linesPerLevel === this.levelTotal) {
@@ -1095,8 +1127,11 @@ namespace Tetris {
         render() {
             let _game = this;
             this.gameCtx.clearRect(0, 0, this.gameCanvas.width, this.gameCanvas.height);
+            this.inactiveCtx.clearRect(0, 0, this.gameCanvas.width, this.gameCanvas.height);
+
+            this.ghostPiece.draw(this.inactiveCtx);
             this.currentTetromino.draw(this.gameCtx);
-            this.gameGrid.redrawLockedPieces(this.gameCtx);
+            this.gameGrid.redrawLockedPieces(this.inactiveCtx);
 
             this.updateUI();
 
